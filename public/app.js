@@ -486,9 +486,10 @@
 
   function setChatBusy(busy) {
     chatState.busy = busy;
-    sendBtn.disabled = busy;
-    chatInput.disabled = false; // 保持可输入，只是发不出去
+    // 「发送」和「停止」互斥显示：同时出现两个按钮在小屏上会挤成一团
+    sendBtn.hidden = busy;
     stopBtn.hidden = !busy;
+    chatInput.disabled = false; // 保持可输入，只是发不出去
   }
 
   /** 解析一帧 SSE（event: xxx \n data: {...}） */

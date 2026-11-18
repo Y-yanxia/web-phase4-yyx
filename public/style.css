@@ -669,6 +669,18 @@ main.wrap {
   align-items: flex-start;
 }
 
+/* 工具卡片容器：没有工具调用时不占位 */
+.tool-stack {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  width: 100%;
+}
+
+.tool-stack:empty {
+  display: none;
+}
+
 .bubble {
   max-width: 86%;
   padding: 10px 13px;
