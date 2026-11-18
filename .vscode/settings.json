@@ -1,0 +1,22 @@
+{
+  // 把依赖目录从资源管理器里藏起来，左边栏干净很多（文件还在，只是不显示）
+  "files.exclude": {
+    "node_modules": true,
+    ".npm-cache": true
+  },
+  // 全局搜索时排除，免得搜一个函数名出来几百个依赖里的结果
+  "search.exclude": {
+    "node_modules": true,
+    ".npm-cache": true,
+    "package-lock.json": true
+  },
+  "editor.tabSize": 2,
+  "editor.insertSpaces": true,
+  "files.eol": "\n",
+  "files.trimTrailingWhitespace": true,
+  "files.insertFinalNewline": true,
+  "editor.rulers": [100],
+  "emmet.includeLanguages": {
+    "javascript": "javascriptreact"
+  }
+}

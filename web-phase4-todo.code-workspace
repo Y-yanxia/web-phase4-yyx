@@ -1,0 +1,39 @@
+{
+  "folders": [
+    {
+      "name": "web-phase4-todo",
+      "path": "."
+    }
+  ],
+  "settings": {
+    "files.exclude": {
+      "node_modules": true,
+      ".npm-cache": true
+    },
+    "search.exclude": {
+      "node_modules": true,
+      ".npm-cache": true,
+      "package-lock.json": true
+    },
+    "editor.tabSize": 2,
+    "files.eol": "\n",
+    "files.trimTrailingWhitespace": true,
+    "files.insertFinalNewline": true,
+    "editor.rulers": [100]
+  },
+  "launch": {
+    "version": "0.2.0",
+    "configurations": [
+      {
+        "name": "调试服务端（server/app.js）",
+        "type": "node",
+        "request": "launch",
+        "program": "${workspaceFolder}/server/app.js",
+        "cwd": "${workspaceFolder}",
+        "console": "integratedTerminal",
+        "skipFiles": ["<node_internals>/**"],
+        "envFile": "${workspaceFolder}/.env"
+      }
+    ]
+  }
+}
