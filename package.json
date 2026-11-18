@@ -1,0 +1,21 @@
+{
+  "name": "web-phase4-todo",
+  "version": "1.0.0",
+  "private": true,
+  "description": "一句话清单 —— 说一句话，它就记下来。26级第五阶段 Web + AI 应用",
+  "type": "module",
+  "engines": {
+    "node": ">=22.5.0"
+  },
+  "scripts": {
+    "start": "node server/app.js",
+    "dev": "node server/app.js",
+    "dev:watch": "node --watch server/app.js",
+    "mock": "node scripts/mock-llm.js",
+    "smoke": "node scripts/smoke.mjs",
+    "check": "node scripts/check.mjs"
+  },
+  "dependencies": {
+    "express": "^4.21.2"
+  }
+}

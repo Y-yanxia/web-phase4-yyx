@@ -1,0 +1,28 @@
+# 依赖
+node_modules/
+
+# 环境变量：Key 绝不能进代码库（任务书坑二）
+.env
+.env.local
+.env.*.local
+
+# 数据库文件：运行时数据，不进仓库
+data/
+*.db
+*.db-shm
+*.db-wal
+
+# 日志与系统文件
+*.log
+.DS_Store
+Thumbs.db
+
+# 编辑器
+.vscode/
+.idea/
+
+# 部署平台
+.vercel
+
+# ���� npm ���棨ɳ�价���ã�������������Ҫ��
+.npm-cache/
