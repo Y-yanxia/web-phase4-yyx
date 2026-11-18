@@ -384,6 +384,13 @@ main.wrap {
   min-height: 132px;
 }
 
+/* 用 ul/li 而不是一堆 div —— 一段任务列表本来就是列表 */
+.item-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+
 .item {
   display: flex;
   align-items: flex-start;

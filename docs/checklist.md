@@ -9,16 +9,18 @@
 
 | # | 产出物 | 状态 | 在哪 / 怎么做 |
 |---|---|---|---|
-| 1.1 | 至少 2 个页面，能互相跳转 | ✅ | 3 个视图：`#/list` `#/chat` `#/about`，hash 路由 |
-| 1.2 | 语义化标签 | ✅ | `header` / `nav` / `main` / `section` / `footer` / `article` |
-| 1.3 | 响应式 375px 不出横向滚动条 | ✅ | 见 `style.css` 的 `@media (max-width: 640px)`；📸 需截图 |
+| 1.1 | 至少 2 个页面，能互相跳转 | ✅ | 3 个视图：`#/list` `#/chat` `#/about`，hash 路由 + 导航高亮 |
+| 1.2 | 语义化标签 | ✅ | `header` / `nav` / `main` / `section` / `footer` / `article`，清单用 `ul`+`li` |
+| 1.3 | 响应式 375px 不出横向滚动条 | ✅ | `style.css` 的 `@media (max-width: 640px)`；📸 需在 375px 下截图 |
 | 1.4 | 至少 1 处真 JS 交互 | ✅ | Tab 切换 / 表单校验 / 列表筛选 / 二次确认删除，共 4 处 |
-| 1.5 | 图片 ≤300KB | ✅ | 没有图片，logo 是内联 SVG，天然无此问题 |
+| 1.5 | 图片 ≤300KB | ✅ | 没有图片，logo 是内联 SVG，天然不触发这条 |
 | 1.6 | 控制台无红色报错 | ✅ | favicon 用 `data:` URI + `/favicon.ico` 返回 204；📸 需截图自证 |
-| 1.7 | 线上 URL | ⏳ | 部署到 Vercel（见 README「部署」） |
-| 1.8 | 电脑端 + 手机端截图 | 📸 | 手机浏览器打开 Vercel 地址截图（地址栏要可见） |
-| 1.9 | 抓包记录 3 条 + 404 | ✅ 模板 / 📸 实测 | `docs/network.md` 已备好表格，把实测数字和截图填进去 |
-| 1.10 | README（含本地打开方式） | ✅ | 见 README「本地运行」 |
+| 1.7 | **https 公网地址（Pages / Vercel / Cloudflare 三选一）** | ⏳ | `public/` 是零构建静态站，直接托管；步骤见 README「部署 → 第 2 步」 |
+| 1.8 | 电脑端 + 手机端截图 | 📸 | 手机浏览器打开 Vercel 地址截图（地址栏要可见，证明是 https） |
+| 1.9 | 抓包记录 3 条 | ✅ 已有真实数据 / 📸 | `docs/network.md`，把你自己 DevTools 的数字替换进去 |
+| 1.10 | 404 截图 | ✅ 行为已就绪 / 📸 | 访问 `/not-exist` → 真 404 + `public/404.html`（早期有 SPA 兜底，会返回 200，已删） |
+| 1.11 | README（含本地打开方式） | ✅ | README「本地运行」+「本地打开方式（两种，别用错）」 |
+| 1.12 | 仓库链接（建议 `web-phase4-姓名`） | ⏳ | 现在目录名是 `web-phase4-todo`，推 GitHub 时改成你的名字 |
 
 ## 任务 2 · 3 个接口，数据落盘
 
@@ -108,10 +110,38 @@ node -e "import('node:sqlite').then(({DatabaseSync})=>{const db=new DatabaseSync
 
 ---
 
+## 任务1 自查：三条命令就能过一遍
+
+打开 <http://localhost:3000>，F12 → Console，依次粘贴：
+
+```js
+// ① 375px 有没有横向滚动条（先在设备模拟里选 iPhone SE，宽度 375）
+//    scrollWidth 必须 ≤ clientWidth，相等就说明没溢出
+[document.documentElement.scrollWidth, document.documentElement.clientWidth]
+
+// ② 看结构里用了哪些标签（语义化够不够，一眼能看出来）
+[...new Set([...document.querySelectorAll('body *')].map(el => el.tagName))].join(' ')
+
+// ③ 五个必需的语义化标签齐不齐（应该全是 true）
+['header','nav','main','section','footer'].map(t => !!document.querySelector(t))
+```
+
+然后再看两件肉眼的事：
+
+- Console 面板**没有红色**（黄色 warning 不算）
+- 把窗口拖到很窄，**没有横向滚动条**，文字不重叠
+
+最后访问 `/not-exist`，Network 里那一行的 `Status Code` 必须是 **404**。
+
+---
+
 ## 还差什么（按优先级）
 
-1. **部署**：Vercel（前端）+ Render（后端）—— 见 README「部署」两节
-2. **截图包**：约 20 张，建议建 `docs/screenshots/` 按 `T1-01` 这样编号存
-3. **2 分钟录屏**：README 有分镜脚本
-4. **周记模板**：把任务书第五部分发我，我帮你套
-5. **彩排**：删掉 `node_modules` 和 `.env`，照 README 从零跑一遍，计时
+1. **改仓库名**：`web-phase4-todo` → `web-phase4-你的姓名`，再推到 GitHub
+2. **部署后端**：Render（8 分钟，拿到 `https://xxx.onrender.com`）
+3. **部署前端**：Vercel，Root Directory 选 `public`（5 分钟，拿到 https 公网地址）
+   → 回来改 `public/config.js` 的 `API_BASE`，再把 Vercel 域名写进 Render 的 `ALLOWED_ORIGINS`
+4. **截图包**：`docs/screenshots/` 里按 `T1-01` 编号存，共约 20 张（`docs/network.md` 有清单）
+5. **2 分钟录屏**：README 有分镜脚本，练两遍再录
+6. **周记模板**：把任务书第五部分发我，我帮你套格式
+7. **彩排**：删掉 `node_modules` 和 `.env`，照 README 从零跑一遍，计时 —— 这一条最容易翻车

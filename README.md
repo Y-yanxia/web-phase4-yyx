@@ -73,13 +73,14 @@ CORS 手写了 15 行，.env 用 Node 20.12+ 内置的 `process.loadEnvFile()`�
 
 ```
 web-phase4-todo/
-├── public/                  # 前端（纯静态，可直接丢 Vercel）
+├── public/                  # 前端（纯静态、零构建，直接丢 Vercel / Pages）
 │   ├── index.html           # 三个视图：清单 / AI 助手 / 关于
+│   ├── 404.html             # 真 404 页面（Pages 也认这个约定）
 │   ├── style.css            # 设计变量 + 响应式
 │   ├── config.js            # ★ API_BASE 唯一配置点
 │   └── app.js               # 路由 / 三态 / SSE 读取 / 工具卡片
 ├── server/
-│   ├── app.js               # ★ 入口：CORS → body → 路由 → 静态 → 兜底 → 错误
+│   ├── app.js               # ★ 入口：CORS → body → 路由 → 静态 → 404 → 错误
 │   ├── env.js               # 加载 .env（必须第一个 import）
 │   ├── db.js                # SQLite 建表 + 播种 + DAO
 │   ├── utils.js             # 统一响应 / AppError / catchAsync / 校验
@@ -94,7 +95,7 @@ web-phase4-todo/
 │   └── mock-llm.js          # 假模型服务：不花钱也能演示流式和工具调用
 ├── docs/
 │   ├── api.md               # 接口文档表（方法/路径/参数/返回示例）
-│   ├── network.md           # 抓包记录
+│   ├── network.md           # 抓包记录（含真实耗时）
 │   ├── incidents.md         # 事故日志（4 个真实踩坑）
 │   └── checklist.md         # 交付清单（对着打勾）
 ├── data/                    # SQLite 文件（.gitignore，不进仓库）
@@ -139,6 +140,21 @@ npm start
 ```
 
 浏览器打开 <http://localhost:3000>。
+
+### 本地打开方式（两种，别用错）
+
+| 方式 | 命令 | 能做什么 |
+|---|---|---|
+| ✅ 推荐 | `npm start` → 访问 `http://localhost:3000` | 全部功能：列表、增删改查、AI 助手 |
+| ⚠️ 只能看样式 | 双击 `public/index.html`（`file://` 协议） | 只有静态布局，列表会显示"加载失败" |
+
+**为什么不能双击 html 文件？**
+页面一加载就 `fetch('/api/items')`，`file://` 协议下这个请求会被浏览器直接拦掉
+（Origin 是 `null`，服务端也不存在）。这是**正常现象**，不是 bug ——
+所以验收和截图一律走 `npm start` 那条路。
+
+> 想验证这个说法：双击打开后按 F12 → Console，会看到
+> `Fetch API cannot load file:///api/items` 之类的报错。
 
 ### 环境变量示例
 
@@ -217,12 +233,16 @@ curl -i -X POST http://localhost:3000/api/items \
 
 ## 部署
 
-### 方式 A：一个服务全搞定（推荐，10 分钟）
+任务要求前端必须有一个 **https 公网地址**，托管在 GitHub Pages / Vercel / Cloudflare Pages 之一。
+本项目的 `public/` 是**纯静态、零构建**的，可以原样丢到任何一个静态托管上；
+后端单独放 Render。两边靠 `public/config.js` 里的 `API_BASE` 连起来。
 
-前端由 Express 一起托管，只部署后端。
+**顺序很重要：先部署后端，拿到地址，再部署前端。**
 
-1. 把仓库推到 GitHub
-2. Render → New → Web Service → 选这个仓库
+### 第 1 步：后端 → Render（约 8 分钟）
+
+1. 仓库推到 GitHub
+2. Render → **New → Web Service** → 选这个仓库
 3. 填：
 
    | 项 | 值 |
@@ -232,14 +252,24 @@ curl -i -X POST http://localhost:3000/api/items \
    | Start Command | `npm start` |
    | Health Check Path | `/api/health` |
 
-4. Environment 里加 `LLM_API_KEY` / `LLM_BASE_URL` / `LLM_MODEL` / `SEED=1`
-5. Deploy → 拿到 `https://xxx.onrender.com`，打开就是完整应用
+4. Environment 里加三个变量（`LLM_API_KEY` 可以留空，只影响 AI）：
 
-### 方式 B：前后端分开（任务3 说的那种，CORS 就派上用场了）
+   ```
+   LLM_API_KEY=sk-xxxxxxxx
+   LLM_BASE_URL=https://api.deepseek.com
+   LLM_MODEL=deepseek-chat
+   SEED=1
+   ```
 
-1. **后端**照方式 A 部署到 Render，拿到地址 `https://xxx.onrender.com`
-2. **前端**推 Vercel：New Project → 选仓库 → **Root Directory 选 `public`** → Framework 选 Other
-3. 改 `public/config.js`：
+5. Deploy → 打开 `https://xxx.onrender.com/api/health`，能看到 JSON 就成功了
+
+### 第 2 步：前端 → Vercel（约 5 分钟）
+
+1. Vercel → **Add New → Project** → 选同一个仓库
+2. 关键一步：**Root Directory 选 `public`**（不选的话 Vercel 会把它当 Node 项目去 build，然后失败）
+3. Framework Preset 选 **Other**，Build Command 和 Output Directory 都留空
+4. Deploy → 拿到 `https://your-app.vercel.app`
+5. 改 `public/config.js`，把后端地址填进去：
 
    ```js
    window.APP_CONFIG = {
@@ -247,15 +277,71 @@ curl -i -X POST http://localhost:3000/api/items \
    };
    ```
 
-4. 回 Render，把 Vercel 域名加进环境变量：
+6. `git commit && git push` → Vercel 自动重新部署
+7. 回 Render，把 Vercel 域名加进环境变量，让它允许跨域：
 
    ```
    ALLOWED_ORIGINS=http://localhost:3000,https://your-app.vercel.app
    ```
 
-5. 重新部署，打开 Vercel 地址
+8. 保存后 Render 会自动重启，打开 Vercel 地址验收
 
-> **本地好好的、线上白屏** —— 九成是第 3 步忘了改，前端还在请求 `127.0.0.1`（任务书坑三）。
+> **本地好好的、线上白屏** —— 九成是第 5 步忘了改，前端还在请求 `127.0.0.1`（任务书坑三）。
+> 打开 F12 → Console，如果看到 `blocked by CORS policy`，就是第 7 步的域名没加对。
+
+### 第 3 步：验收三件事
+
+```bash
+# ① 后端活着
+curl https://xxx.onrender.com/api/health
+
+# ② 前端能拿到数据（浏览器打开 Vercel 地址，列表要出来）
+
+# ③ 404 是真的 404（任务1 要截图的就是这个）
+curl -o NUL -w "%{http_code}\n" https://你的前端地址/not-exist
+# 应该输出 404
+```
+
+### 备选托管
+
+| 平台 | 怎么做 | 注意 |
+|---|---|---|
+| **Cloudflare Pages** | 连仓库 → Build output directory 填 `public` → 构建命令留空 | 和 Vercel 基本一样，国内访问通常更快 |
+| **GitHub Pages** | Settings → Pages → Source 选 GitHub Actions，加一个把 `public/` 上传为站点的 workflow | 仓库根不是 `index.html`，不能直接用 "Deploy from a branch"，必须走 Actions |
+| **不要用** | 把 Express 部署到 Vercel | serverless 有执行时长上限，SSE 流式会被掐断 |
+
+GitHub Pages 的 workflow 长这样（存成 `.github/workflows/pages.yml`）：
+
+```yaml
+name: Deploy static site
+on:
+  push:
+    branches: [main]
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/configure-pages@v5
+      - uses: actions/upload-pages-artifact@v3
+        with:
+          path: public
+      - id: deployment
+        uses: actions/deploy-pages@v4
+```
+
+### 最省事的偷懒方案（不满足任务1 的静态托管要求）
+
+只部署 Render 那一个服务，Express 会顺带托管 `public/`，一个地址跑全套。
+好处是零 CORS、零配置；坏处是没有独立的静态站点地址，任务1 的"部署到 Pages/Vercel/Cloudflare"这一条就不成立。
+**建议还是按上面两步走**，多花 10 分钟，验收点就齐了。
 
 ---
 
@@ -279,6 +365,20 @@ Node 版本太低。`node -v` 必须 ≥ 22.5，去 nodejs.org 装 LTS。
 前端 `abort()` 只能停浏览器这一侧。必须后端也 abort 上游请求 —— 见 `server/routes/chat.js`
 里 `res.on('close')` 那一段。
 
+**Q：访问 `/not-exist` 为什么是 404，而不是回到首页？**
+因为本项目用 hash 路由（`#/chat` 这种），服务端不需要认识任何前端路径，所以没有做 SPA 兜底。
+好处有两个：① 未知路径返回**真正的 404 状态码**，任务1 要的 404 截图才截得出来；
+② `public/404.html` 正好是 GitHub Pages 的约定文件，静态部署后行为和本地一致。
+（早期版本有兜底，结果任何路径都 200，那张截图永远截不出来 —— 已删。）
+
+**Q：部署到 Vercel 后页面出来了，但列表一直"加载失败"**
+三个检查点，按顺序看：① `public/config.js` 的 `API_BASE` 填了没 ② 地址末尾有没有多余的斜杠
+③ Render 的 `ALLOWED_ORIGINS` 里有没有你这个 Vercel 域名。Console 报 `blocked by CORS policy` 就是第 ③ 条。
+
+**Q：Vercel 构建失败，提示找不到输出目录**
+Root Directory 没设成 `public`。Vercel 看到 `package.json` 就会当成 Node 项目去 build，
+但 `public/` 是零构建的静态站，设置见上面「部署 → 第 2 步」。
+
 **Q：重启 Render 后数据没了**
 免费实例的磁盘是临时的。本项目用 `SEED=1` 在启动时补演示数据。要真持久化得上付费磁盘或外部数据库，
 这个取舍写进了下面的「已知问题」。
@@ -301,7 +401,9 @@ Node 版本太低。`node -v` 必须 ≥ 22.5，去 nodejs.org 装 LTS。
 
 | 任务书要求 | 在哪实现 |
 |---|---|
-| 任务1 静态页 + 语义化 + 响应式 + JS 交互 | `public/index.html` / `style.css` / `app.js` |
+| 任务1 静态页 + 语义化 + 响应式 + JS 交互 | `public/index.html`（header/nav/main/section/footer + ul/li）/ `style.css` 的 640px 断点 / `app.js` |
+| 任务1 部署到 Pages / Vercel / Cloudflare | 见上面「部署」：`public/` 零构建直接托管，`config.js` 填后端地址 |
+| 任务1 404 截图 | 删掉了 SPA 兜底，`/not-exist` 返回真 404 + `public/404.html` |
 | 任务2 3 个接口 + 落盘 + 统一格式 + 400 校验 | `server/routes/items.js` / `db.js` / `utils.js` |
 | 任务3 三态 + 自动刷新 + 配置项 + CORS | `public/app.js` 的 `renderList()` / `config.js` / `server/app.js` |
 | 任务4 后端转发 + 流式 + 3 轮上下文 + 停止 | `server/routes/chat.js` / `llm.js` / `sessions.js` |

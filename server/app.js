@@ -105,15 +105,25 @@ app.use('/api', (req, res) => {
   res.status(404).json(fail(40400, `接口不存在：${req.method} ${req.originalUrl}`));
 });
 
-// 浏览器会自动请求 favicon；返回 204，别让它落进 SPA 兜底返回一整页 HTML
+// 浏览器会自动请求 favicon；返回 204，省掉一次无意义的 7KB 响应
 app.get('/favicon.ico', (req, res) => res.status(204).end());
 
 // ------------------------------------------------------------
-// 7. 前端路由兜底：hash 路由其实用不到，但留着防手滑刷新 /chat
+// 7. 兜底 404
+//
+// 这里以前写的是 SPA 兜底（任何路径都回 index.html + 200），后来删了，原因有两个：
+//   1. 本项目用 hash 路由，服务端根本不需要知道 /chat 是什么，兜底是多余的
+//   2. 更重要的：任务1 要求"故意请求一个不存在的路径，看 404 长什么样"。
+//      有兜底的话浏览器永远拿到 200，这张截图根本截不出来 —— 等于自己把验收点弄没了
+//
+// 顺带一个好处：public/404.html 是 GitHub Pages 的约定文件，
+// 静态部署到 Pages 时未知路径会自动用它，行为和本地完全一致。
 // ------------------------------------------------------------
-app.use((req, res, next) => {
-  if (req.method !== 'GET') return next();
-  res.sendFile(path.join(PUBLIC_DIR, 'index.html'));
+app.use((req, res) => {
+  if (req.method === 'GET' && req.accepts('html')) {
+    return res.status(404).sendFile(path.join(PUBLIC_DIR, '404.html'));
+  }
+  res.status(404).json(fail(40400, `路径不存在：${req.method} ${req.originalUrl}`));
 });
 
 // ------------------------------------------------------------

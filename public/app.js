@@ -185,11 +185,11 @@
       const items = listState.items;
       const today = todayString();
 
-      listArea.innerHTML = items
+      listArea.innerHTML = `<ul class="item-list">${items
         .map((item) => {
           const overdue = item.due && !item.done && item.due < today;
           return `
-            <div class="item ${item.done ? 'is-done' : ''}" data-id="${item.id}">
+            <li class="item ${item.done ? 'is-done' : ''}" data-id="${item.id}">
               <button
                 class="check"
                 type="button"
@@ -201,15 +201,15 @@
               ></button>
               <div class="item-body">
                 <span class="item-title">${esc(item.title)}</span>
-                <div class="item-meta">
+                <p class="item-meta">
                   ${item.due ? `<span class="due ${overdue ? 'is-overdue' : ''}">${overdue ? '已逾期 ' : ''}${esc(item.due)}</span>` : ''}
                   <span>#${item.id}</span>
-                </div>
+                </p>
               </div>
               <button class="del" type="button" data-action="delete" data-id="${item.id}" aria-label="删除：${esc(item.title)}">删除</button>
-            </div>`;
+            </li>`;
         })
-        .join('');
+        .join('')}</ul>`;
 
       const openCount = items.filter((i) => !i.done).length;
       countEl.textContent = `${items.length} 条 · 未完 ${openCount}`;
