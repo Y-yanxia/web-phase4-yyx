@@ -163,3 +163,48 @@ const d = new Date(`${value}T00:00:00Z`);
 **验证**
 合法的 `2026-12-31` 通过；`2026-02-30` 仍然被拒（Date 会滚到 3 月 2 日，round-trip 对不上）。
 这个 bug 是 `npm run smoke` 抓到并固定下来的 —— 所以这个脚本值得留着。
+
+---
+
+## 事故 5：部署到 GitHub Pages 后，列表 404、提交 405
+
+**现象**
+本地一切正常。传到 GitHub Pages 后打开页面：布局、Tab、404 页都正常，
+但列表转一下变成「列表没加载出来 · 请求失败（HTTP 404）」，
+在输入框加一条任务 →「请求失败（HTTP 405）」。
+
+**定位**
+F12 → Network 看请求地址 —— 请求打到了 `https://y-yanxia.github.io/api/items`，
+也就是**静态站点自己的地址**，而不是后端。
+
+- GET 一个不存在的路径 → 静态站返回 404
+- POST 到静态站 → GitHub Pages 不接受写操作，返回 405 Method Not Allowed
+
+根因：`public/config.js` 里的 `API_BASE` 还是空字符串（默认值），
+所以 `fetch('/api/items')` 变成同源请求，打到了托管前端的站点上。
+
+**为什么会有这个坑**
+本地是"Express 同时托管前端和后端"的模式，`API_BASE` 留空正好能用。
+一旦前后端分到两个域名，这个"能用的默认值"就变成了错的默认值。
+这属于**环境假设泄漏进代码**——和任务书坑三（地址写死 localhost）是同一类错误的两个方向。
+
+**修复**
+把后端地址写进配置：
+
+```js
+window.APP_CONFIG = {
+  API_BASE: 'https://web-phase4-yyx-api.onrender.com',
+};
+```
+
+再回 Render 把 `ALLOWED_ORIGINS` 加上 `https://y-yanxia.github.io`（注意不带仓库名），
+等 Pages 重新部署完成后刷新，列表就出来了。
+
+**顺手改进**
+原本报错只显示「请求失败（HTTP 405）」，光看状态码猜不到是配置问题。
+所以在 `request()` 里加了一段：如果响应**不是我们后端的 JSON**（`payload` 为空），
+并且当前不在 localhost、`API_BASE` 又为空，就在错误信息后面补一句
+「public/config.js 里的 API_BASE 还没配置，请求被发到了静态托管上」。
+
+**验证**
+再次访问列表正常渲染；故意把 `API_BASE` 改回空串，报错里就能看到那句提示。

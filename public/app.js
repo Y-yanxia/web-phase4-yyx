@@ -34,6 +34,20 @@
     return local.toISOString().slice(0, 10);
   };
 
+  /**
+   * 没配 API_BASE 却部署在静态托管上时，补一句人话
+   * 场景：传到 GitHub Pages / Vercel 后忘了改 config.js，
+   *      请求会打到静态站自己身上（列表 404、POST 405），光看状态码根本猜不到原因
+   */
+  function missingBackendHint() {
+    if (API_BASE) return '';
+    const host = location.hostname;
+    const isLocal =
+      host === 'localhost' || host === '127.0.0.1' || host === '[::1]' || location.protocol === 'file:';
+    if (isLocal) return '';
+    return ' —— public/config.js 里的 API_BASE 还没配置，请求被发到了静态托管上';
+  }
+
   /** 统一请求：所有接口都返回 {code,data,msg}，这里只把 data 交出去 */
   async function request(path, { method = 'GET', body } = {}) {
     const res = await fetch(apiUrl(path), {
@@ -46,11 +60,13 @@
     try {
       payload = await res.json();
     } catch {
-      /* 服务端没返回 JSON（比如网关 502 的 HTML 页） */
+      /* 服务端没返回 JSON（静态托管的 404/405 HTML 页、网关的 502 都属于这种） */
     }
 
     if (!res.ok || !payload || payload.code !== 0) {
-      const error = new Error(payload?.msg || `请求失败（HTTP ${res.status}）`);
+      // payload 为空 = 响应不是我们后端给的，多半是地址配错了，补一句怎么修
+      const suffix = payload ? '' : missingBackendHint();
+      const error = new Error((payload?.msg || `请求失败（HTTP ${res.status}）`) + suffix);
       error.status = res.status;
       error.code = payload?.code;
       throw error;
