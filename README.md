@@ -111,10 +111,10 @@ web-phase4-todo/
 
 ## 本地运行
 
-**环境要求：Node.js ≥ 22.5**（内置 `node:sqlite` 需要这个版本）
+**环境要求：Node.js ≥ 24**（`node:sqlite` 从 24 起默认开启；22.x 早期版本要加 `--experimental-sqlite` 才能用）
 
 ```bash
-node -v     # 必须 v22.5 以上，推荐 v22 或 v24 LTS
+node -v     # 需要 v24 以上（推荐 v24 LTS；本地实测 v24.21）
 ```
 
 ```bash
@@ -263,7 +263,17 @@ curl -i -X POST http://localhost:3000/api/items \
    SEED=1
    ```
 
-5. Deploy → 打开 `https://xxx.onrender.com/api/health`，能看到 JSON 就成功了
+5. 再补两个变量（很容易漏）：
+
+   `
+   NODE_VERSION=24
+   ALLOWED_ORIGINS=http://localhost:3000,https://y-yanxia.github.io
+   `
+
+   - `NODE_VERSION=24` **必须加**：`node:sqlite` 在 Node 22 上要额外开实验开关，平台默认给 22 会启动失败
+   - `ALLOWED_ORIGINS` 现在就把 Pages 域名写上，省得回头再来改一遍
+
+6. Deploy → 打开 `https://xxx.onrender.com/api/health`，能看到 JSON 就成功了
 
 ### 第 2 步：前端 → 静态托管（二选一）
 
@@ -353,7 +363,7 @@ curl -o NUL -w "%{http_code}\n" https://你的前端地址/not-exist
 ## 常见问题
 
 **Q：启动报 `Cannot find module 'node:sqlite'`**
-Node 版本太低。`node -v` 必须 ≥ 22.5，去 nodejs.org 装 LTS。
+Node 版本太低。`node -v` 需要 ≥ 24，去 nodejs.org 装 LTS。
 
 **Q：页面能开，但列表一直"加载失败"**
 看浏览器 Console 和 Network。如果是 CORS 报错 → 检查 `ALLOWED_ORIGINS` 有没有把你的前端域名写进去。
