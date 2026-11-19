@@ -1,0 +1,52 @@
+# 把 public/ 发布到 GitHub Pages
+#
+# 为什么必须走 Actions、不能用「Deploy from a branch」？
+#   仓库根目录没有 index.html（前端在 public/ 子目录里），
+#   而 branch 模式只能发布根目录或 /docs，发不了 public/。
+#   所以用 Actions 把 public/ 单独打包上传。
+#
+# 用之前必须在仓库里打开一次开关：
+#   Settings → Pages → Build and deployment → Source 选「GitHub Actions」
+#   不打开的话这个工作流会报错 "Get Pages site failed"
+
+name: Deploy to GitHub Pages
+
+on:
+  push:
+    branches: [main]
+  # 也可以在 Actions 页面手动点一下运行
+  workflow_dispatch:
+
+# 允许工作流写 Pages
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+
+# 同时只跑一个部署，新的推上来就排队，别互相覆盖
+concurrency:
+  group: pages
+  cancel-in-progress: false
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - name: 拉代码
+        uses: actions/checkout@v4
+
+      - name: 配置 Pages
+        uses: actions/configure-pages@v5
+
+      # 只上传 public/ —— 后端代码和 node_modules 不会进静态站点
+      - name: 打包 public 目录
+        uses: actions/upload-pages-artifact@v3
+        with:
+          path: public
+
+      - name: 发布
+        id: deployment
+        uses: actions/deploy-pages@v4

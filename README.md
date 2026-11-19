@@ -98,6 +98,8 @@ web-phase4-todo/
 │   ├── network.md           # 抓包记录（含真实耗时）
 │   ├── incidents.md         # 事故日志（4 个真实踩坑）
 │   └── checklist.md         # 交付清单（对着打勾）
+├── .github/workflows/
+│   └── pages.yml            # GitHub Pages 自动部署（推 main 就发）
 ├── data/                    # SQLite 文件（.gitignore，不进仓库）
 ├── .env.example
 └── package.json
@@ -263,13 +265,31 @@ curl -i -X POST http://localhost:3000/api/items \
 
 5. Deploy → 打开 `https://xxx.onrender.com/api/health`，能看到 JSON 就成功了
 
-### 第 2 步：前端 → Vercel（约 5 分钟）
+### 第 2 步：前端 → 静态托管（二选一）
+
+`public/` 是零构建的纯静态站，下面两个平台都能直接托管，**选一个就行**。
+区别只有一点：Vercel 的地址是根路径，GitHub Pages 的地址带仓库名子路径。
+
+#### 方案 A：Vercel（最省事，5 分钟）
 
 1. Vercel → **Add New → Project** → 选同一个仓库
 2. 关键一步：**Root Directory 选 `public`**（不选的话 Vercel 会把它当 Node 项目去 build，然后失败）
 3. Framework Preset 选 **Other**，Build Command 和 Output Directory 都留空
 4. Deploy → 拿到 `https://your-app.vercel.app`
-5. 改 `public/config.js`，把后端地址填进去：
+
+#### 方案 B：GitHub Pages（仓库本来就在 GitHub 上时最顺）
+
+**两个前置条件，缺一个就失败：**
+
+- 仓库必须是 **public** —— 免费账号的 Pages 只对公开仓库开放
+- 必须先在仓库里打开开关：**Settings → Pages → Build and deployment → Source 选 `GitHub Actions`**
+  （不能选 "Deploy from a branch"，因为仓库根目录没有 `index.html`，前端在 `public/` 子目录里，
+   而 branch 模式只能发布根目录或 `/docs`）
+
+**步骤：**
+
+1. 改 `public/config.js`，把后端地址填进去（**这一步不能省**，否则页面会去请求
+   `github.io/api/items`，必然 404）：
 
    ```js
    window.APP_CONFIG = {
@@ -277,17 +297,36 @@ curl -i -X POST http://localhost:3000/api/items \
    };
    ```
 
-6. `git commit && git push` → Vercel 自动重新部署
-7. 回 Render，把 Vercel 域名加进环境变量，让它允许跨域：
+2. 确认 `.github/workflows/pages.yml` 已经在仓库里（本项目自带，不用自己写）
+3. `git push` 到 `main` 分支
+4. 打开仓库的 **Actions** 页，会看到一个叫 `Deploy to GitHub Pages` 的任务在跑，等 1~2 分钟变绿
+5. 地址是：`https://<你的用户名>.github.io/<仓库名>/`
+6. 回 Render，把这个域名加进 `ALLOWED_ORIGINS`：
 
    ```
-   ALLOWED_ORIGINS=http://localhost:3000,https://your-app.vercel.app
+   ALLOWED_ORIGINS=http://localhost:3000,https://你的用户名.github.io
    ```
 
-8. 保存后 Render 会自动重启，打开 Vercel 地址验收
+   > ⚠️ **只写到 `github.io` 为止，不要带仓库路径。**
+   > CORS 的 `Origin` 请求头里没有路径，写成 `https://user.github.io/web-phase4-xxx` 会一直报
+   > `blocked by CORS policy` —— 这是 GitHub Pages 部署最容易卡住的一步。
 
-> **本地好好的、线上白屏** —— 九成是第 5 步忘了改，前端还在请求 `127.0.0.1`（任务书坑三）。
-> 打开 F12 → Console，如果看到 `blocked by CORS policy`，就是第 7 步的域名没加对。
+7. 保存后 Render 会自动重启，打开 Pages 地址验收
+
+**GitHub Pages 专属的三个坑：**
+
+| 坑 | 表现 | 原因 / 解法 |
+|---|---|---|
+| 子路径 | CSS/JS 全 404，页面裸奔 | 地址带 `/仓库名/` 前缀。所有资源必须用相对路径 —— 本项目已经是 `./style.css` 这种写法，`404.html` 的返回链接也是 `./` |
+| 404 页 | 访问 `/仓库名/xxx` 能显示 404 页 | 这是 Pages 的约定：站点根目录的 `404.html` 会自动接管未知路径，状态码也是 404，正好满足任务1 的截图要求 |
+| CDN 缓存 | 改完 `config.js` 刷新还是旧的 | Pages 的 CDN 缓存约 10 分钟。用 `Ctrl + Shift + R` 强制刷新，或者改文件名（`config.js?v=2`）绕过 |
+
+#### 方案 C：Cloudflare Pages
+
+连仓库 → Build output directory 填 `public` → 构建命令留空。和 Vercel 基本一样。
+
+> **唯一不能做的**：把 Express 后端部署到 Vercel / Pages。
+> serverless 有执行时长上限，SSE 流式对话会被掐断。
 
 ### 第 3 步：验收三件事
 
@@ -295,46 +334,12 @@ curl -i -X POST http://localhost:3000/api/items \
 # ① 后端活着
 curl https://xxx.onrender.com/api/health
 
-# ② 前端能拿到数据（浏览器打开 Vercel 地址，列表要出来）
+# ② 前端能拿到数据（浏览器打开你的静态站点地址，列表要出来）
+#    GitHub Pages 的话记得带结尾斜杠：https://用户名.github.io/仓库名/
 
 # ③ 404 是真的 404（任务1 要截图的就是这个）
 curl -o NUL -w "%{http_code}\n" https://你的前端地址/not-exist
 # 应该输出 404
-```
-
-### 备选托管
-
-| 平台 | 怎么做 | 注意 |
-|---|---|---|
-| **Cloudflare Pages** | 连仓库 → Build output directory 填 `public` → 构建命令留空 | 和 Vercel 基本一样，国内访问通常更快 |
-| **GitHub Pages** | Settings → Pages → Source 选 GitHub Actions，加一个把 `public/` 上传为站点的 workflow | 仓库根不是 `index.html`，不能直接用 "Deploy from a branch"，必须走 Actions |
-| **不要用** | 把 Express 部署到 Vercel | serverless 有执行时长上限，SSE 流式会被掐断 |
-
-GitHub Pages 的 workflow 长这样（存成 `.github/workflows/pages.yml`）：
-
-```yaml
-name: Deploy static site
-on:
-  push:
-    branches: [main]
-permissions:
-  contents: read
-  pages: write
-  id-token: write
-jobs:
-  deploy:
-    runs-on: ubuntu-latest
-    environment:
-      name: github-pages
-      url: ${{ steps.deployment.outputs.page_url }}
-    steps:
-      - uses: actions/checkout@v4
-      - uses: actions/configure-pages@v5
-      - uses: actions/upload-pages-artifact@v3
-        with:
-          path: public
-      - id: deployment
-        uses: actions/deploy-pages@v4
 ```
 
 ### 最省事的偷懒方案（不满足任务1 的静态托管要求）
